@@ -4,7 +4,6 @@
 # Copyright GPLv3
 # 05.16.2012 
 
-import string
 import json
 import time
 import socket
@@ -12,21 +11,12 @@ import pika
 import sys
 import os
 import ConfigParser
+import optparse
 
 usage = """logelf -c CONFIG_FILE
 """
 
 __metaclass__ = type
-
-def read_config(config_file, section, var):
-    "Read config and return value"
-
-    config = ConfigParser.RawConfigParser()
-    config.read(config_file)
-
-    value = config.get(section, var)
-    return value
-
 
 class Log:
     "Class of syslog log"
@@ -120,32 +110,35 @@ class Log:
 
 def main():
     "Main function"
-    
-    if len(sys.argv) == 3 and "-c" in sys.argv:
-        if os.path.exists(sys.argv[2]):
-            config_file = sys.argv[2]
-            syslog_socket = read_config(config_file, "syslog", "socket")
-            socket_buffer = int(read_config(config_file, "syslog", "buffer"))
-            amqp_server = read_config(config_file, "amqp", "server")
-            amqp_exchange = read_config(config_file, "amqp", "exchange")
-            amqp_rkey = read_config(config_file, "amqp", "routing_key")
-            virtualhost = read_config(config_file, "amqp", "virtualhost")
-            username = read_config(config_file, "amqp", "username")
-            password = read_config(config_file, "amqp", "password")
-            ssl_enable = read_config(config_file, "ssl", "enable")
-            cacertfile = read_config(config_file, "ssl", "cacertfile")
-            certfile = read_config(config_file, "ssl", "certfile")
-            keyfile = read_config(config_file, "ssl", "keyfile")
-            ssl = { 'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile }
-            credentials = pika.PlainCredentials(username, password)
-        else:
-            err_msg = "File %s don't exist" % (sys.argv[2])
-            raise IOError(err_msg)
-        
-        log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_socket, socket_buffer) 
-        log.send("log")
+    parser = optparse.OptionParser()
+    parser.add_option("-c", "--config", dest="config",
+                  help="path to config FILE", metavar="FILE")
+    (options, args) = parser.parse_args()
+    if not options.config:
+        print 'missing --config'
+        sys.exit(1)
 
-    else:
-        raise ValueError(usage)
+    config_fh = open(options.config)
+    config = ConfigParser.RawConfigParser()
+    config.readfp(config_fh)
 
-main()
+    syslog_socket = config.get("syslog", "socket")
+    socket_buffer = config.getint("syslog", "buffer")
+    amqp_server = config.get("amqp", "server")
+    amqp_exchange = config.get("amqp", "exchange")
+    amqp_rkey = config.get("amqp", "routing_key")
+    virtualhost = config.get("amqp", "virtualhost")
+    username = config.get("amqp", "username")
+    password = config.get("amqp", "password")
+    ssl_enable = config.get("ssl", "enable")
+    cacertfile = config.get("ssl", "cacertfile")
+    certfile = config.get("ssl", "certfile")
+    keyfile = config.get("ssl", "keyfile")
+    ssl = { 'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile }
+    credentials = pika.PlainCredentials(username, password)
+
+    log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_socket, socket_buffer)
+    log.send("log")
+
+if __name__ == '__main__':
+    main()
