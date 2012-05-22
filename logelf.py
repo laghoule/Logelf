@@ -4,7 +4,6 @@
 # Copyright GPLv3
 # 05.16.2012 
 
-import string
 import json
 import time
 import socket
