@@ -136,4 +136,5 @@ def main():
     else:
         raise ValueError(usage)
 
-main()
+if __name__ == '__main__':
+    main()
