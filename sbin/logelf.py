@@ -110,6 +110,7 @@ class Log:
 
 def main():
     "Main function"
+
     parser = optparse.OptionParser()
     parser.add_option("-c", "--config", dest="config",
                   help="path to config FILE", metavar="FILE")
