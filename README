@@ -1,0 +1,18 @@
+Requirement
+------------
+
+python
+python-pika
+
+
+Description
+-----------
+
+Logelf is a syslog daemon who format data in gelf, and send it to an AMQP server (RabbitMQ). You can now configure your graylog2 server to listen to your AMQP server.
+
+Install
+-------
+
+Debian way: Just build the package, debuild...
+
+To install the daemon: dpkg --install  logelf-server 
