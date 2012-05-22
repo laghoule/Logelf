@@ -5,7 +5,6 @@
 # 05.16.2012 
 
 import string
-import zlib
 import json
 import time
 import socket
@@ -36,6 +35,7 @@ class Log:
         "Class initialisation"
 
         # Global class var
+        self.facilities = ("kernel messages", "user-level messages", "mail system", "system daemons", "security/authorization messages", "messages generated internally by syslogd", "line printer subsystem", "network news subsystem", "UUCP subsystem", "clock daemon", "security/authorization messages", "FTP daemon", "NTP daemon", "log audit", "log alert", "clock daemon", "local use 0", "local use 1", "local use 2", "local use 2", "local use 3", "local use 4", "local use 5", "local use 6", "local use 7")
         self.hostname = socket.gethostname()
         self.syslog_socket = syslog_socket
         self.socket_buffer = socket_buffer
@@ -87,7 +87,6 @@ class Log:
                 gelf_msg = self.gelfify(self.data)
                 print gelf_msg
                 # send to amqp
-                #self.channel.basic_publish(exchange=amqp_exchange, routing_key=amqp_rkey, properties=pika.BasicProperties(reply_to=self.callback_queue, correlation_id=self.corr_id,), body=str(gelf_msg))
                 self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=gelf_msg)
             except KeyboardInterrupt:
                 print "Keyboard interruption"
@@ -96,8 +95,6 @@ class Log:
 
     def gelfify(self, syslog_msg):
         "Gelfify the syslog messages"
-
-        facilities = ("kernel messages", "user-level messages", "mail system", "system daemons", "security/authorization messages", "messages generated internally by syslogd", "line printer subsystem", "network news subsystem", "UUCP subsystem", "clock daemon", "security/authorization messages", "FTP daemon", "NTP daemon", "log audit", "log alert", "clock daemon", "local use 0", "local use 1", "local use 2", "local use 2", "local use 3", "local use 4", "local use 5", "local use 6", "local use 7")
         
         msg1 = syslog_msg.replace("<", "")
         msg2 = msg1.replace(">", " ")
@@ -110,7 +107,7 @@ class Log:
         self.short_msg = msg[4].replace(":", "")
         self.header = " ".join(msg[4:])
 
-        self.gelf_msg = { 'version': "1", 'timestamp': self.time, 'short_message': self.short_msg, 'full_message': self.header , 'host': self.hostname, 'level': self.severity, 'facility': facilities[int(self.facility)] }
+        self.gelf_msg = { 'version': "1", 'timestamp': self.time, 'short_message': self.short_msg, 'full_message': self.header , 'host': self.hostname, 'level': self.severity, 'facility': self.facilities[int(self.facility)] }
 
         return json.dumps(self.gelf_msg)
     
@@ -146,7 +143,6 @@ def main():
             raise IOError(err_msg)
         
         log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_socket, socket_buffer) 
-        #result = log.read()
         log.send("log")
 
     else:
