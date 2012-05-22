@@ -1,0 +1,62 @@
+#!/bin/sh -e
+
+### BEGIN INIT INFO
+# Provides:          logelf
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: log to gelf to amqp bus 
+# Description: This script will start logelf daemon.
+### END INIT INFO
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="logelf daemon"
+NAME=logelf
+DAEMON="/usr/sbin/logelf.py"
+PIDFILE=/var/run/logelf
+
+. /lib/lsb/init-functions
+
+# Read configuration variable file if it is present
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+case "$1" in
+start)
+        echo -n "Starting logelf daemon:" "logelf "
+        for NAME in $AUTOSTART ; do
+            if [ ! -e $PIDFILE-$NAME.pid ]; then
+                echo -n "$NAME "
+                $DAEMON -c /etc/logelf.conf &
+                echo $! > $PIDFILE.pid
+            else
+                echo "Pidfile already exit $PIDFILE.pid"
+                exit 1
+            fi
+        done
+        echo
+        ;;
+stop)
+        echo -n "Stopping logelf daemon:" "logelf "
+        for NAME in $AUTOSTART ; do
+            echo -n "$NAME "
+            kill `pgrep -f "$DAEMON -c /etc/logelf.conf"`
+            rm $PIDFILE.pid
+        done
+        echo
+        ;;
+restart)
+        echo "Restarting logelf daemon:" "logelf "
+        $0 stop
+        $0 start
+        ;;
+status)
+        for NAME in $AUTOSTART ; do
+            status_of_proc -p $PIDFILE-$NAME $DAEMON $NAME && exit 0 || exit $?
+        done
+        ;;
+*)  log_action_msg "Usage: /etc/init.d/logelf {start|stop|status|restart}"
+        exit 2
+        ;;
+esac
+exit 0
