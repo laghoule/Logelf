@@ -11,6 +11,7 @@ import pika
 import sys
 import os
 import ConfigParser
+import optparse
 
 usage = """logelf -c CONFIG_FILE
 """
@@ -109,32 +110,35 @@ class Log:
 
 def main():
     "Main function"
-    
-    if len(sys.argv) == 3 and "-c" in sys.argv:
-        config_fh = open(sys.argv[2])
-        config = ConfigParser.RawConfigParser()
-        config.readfp(config_fh)
+    parser = optparse.OptionParser()
+    parser.add_option("-c", "--config", dest="config",
+                  help="path to config FILE", metavar="FILE")
+    (options, args) = parser.parse_args()
+    if not options.config:
+        print 'missing --config'
+        sys.exit(1)
 
-        syslog_socket = config.get("syslog", "socket")
-        socket_buffer = config.getint("syslog", "buffer")
-        amqp_server = config.get("amqp", "server")
-        amqp_exchange = config.get("amqp", "exchange")
-        amqp_rkey = config.get("amqp", "routing_key")
-        virtualhost = config.get("amqp", "virtualhost")
-        username = config.get("amqp", "username")
-        password = config.get("amqp", "password")
-        ssl_enable = config.get("ssl", "enable")
-        cacertfile = config.get("ssl", "cacertfile")
-        certfile = config.get("ssl", "certfile")
-        keyfile = config.get("ssl", "keyfile")
-        ssl = { 'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile }
-        credentials = pika.PlainCredentials(username, password)
+    config_fh = open(options.config)
+    config = ConfigParser.RawConfigParser()
+    config.readfp(config_fh)
 
-        log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_socket, socket_buffer) 
-        log.send("log")
+    syslog_socket = config.get("syslog", "socket")
+    socket_buffer = config.getint("syslog", "buffer")
+    amqp_server = config.get("amqp", "server")
+    amqp_exchange = config.get("amqp", "exchange")
+    amqp_rkey = config.get("amqp", "routing_key")
+    virtualhost = config.get("amqp", "virtualhost")
+    username = config.get("amqp", "username")
+    password = config.get("amqp", "password")
+    ssl_enable = config.get("ssl", "enable")
+    cacertfile = config.get("ssl", "cacertfile")
+    certfile = config.get("ssl", "certfile")
+    keyfile = config.get("ssl", "keyfile")
+    ssl = { 'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile }
+    credentials = pika.PlainCredentials(username, password)
 
-    else:
-        raise ValueError(usage)
+    log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_socket, socket_buffer)
+    log.send("log")
 
 if __name__ == '__main__':
     main()
