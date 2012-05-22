@@ -18,16 +18,6 @@ usage = """logelf -c CONFIG_FILE
 
 __metaclass__ = type
 
-def read_config(config_file, section, var):
-    "Read config and return value"
-
-    config = ConfigParser.RawConfigParser()
-    config.read(config_file)
-
-    value = config.get(section, var)
-    return value
-
-
 class Log:
     "Class of syslog log"
 
@@ -123,19 +113,21 @@ def main():
     
     if len(sys.argv) == 3 and "-c" in sys.argv:
         if os.path.exists(sys.argv[2]):
-            config_file = sys.argv[2]
-            syslog_socket = read_config(config_file, "syslog", "socket")
-            socket_buffer = int(read_config(config_file, "syslog", "buffer"))
-            amqp_server = read_config(config_file, "amqp", "server")
-            amqp_exchange = read_config(config_file, "amqp", "exchange")
-            amqp_rkey = read_config(config_file, "amqp", "routing_key")
-            virtualhost = read_config(config_file, "amqp", "virtualhost")
-            username = read_config(config_file, "amqp", "username")
-            password = read_config(config_file, "amqp", "password")
-            ssl_enable = read_config(config_file, "ssl", "enable")
-            cacertfile = read_config(config_file, "ssl", "cacertfile")
-            certfile = read_config(config_file, "ssl", "certfile")
-            keyfile = read_config(config_file, "ssl", "keyfile")
+            config = ConfigParser.RawConfigParser()
+            config.read(sys.argv[2])
+
+            syslog_socket = config.get("syslog", "socket")
+            socket_buffer = config.getint("syslog", "buffer")
+            amqp_server = config.get("amqp", "server")
+            amqp_exchange = config.get("amqp", "exchange")
+            amqp_rkey = config.get("amqp", "routing_key")
+            virtualhost = config.get("amqp", "virtualhost")
+            username = config.get("amqp", "username")
+            password = config.get("amqp", "password")
+            ssl_enable = config.get("ssl", "enable")
+            cacertfile = config.get("ssl", "cacertfile")
+            certfile = config.get("ssl", "certfile")
+            keyfile = config.get("ssl", "keyfile")
             ssl = { 'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile }
             credentials = pika.PlainCredentials(username, password)
         else:
