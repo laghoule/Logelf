@@ -9,6 +9,7 @@ from gevent import socket
 import json
 import time
 import pika
+import stat
 import sys
 import os
 import ConfigParser
@@ -31,10 +32,10 @@ class Log:
                 "security/authorization  messages",
                 "messages generated internally by syslogd", 
                 "line printer subsystem", "network news subsystem",
-                "UUCP subsystem", "clock daemon", 
+                "UUCP subsystem", "clock related", 
                 "security/authorization messages", "FTP daemon", 
                 "NTP subsystem", "log audit", "log alert", 
-                "clock daemon", "local use 0", "local use 1", 
+                "clock related", "local use 0", "local use 1", 
                 "local use 2", "local use 2", "local use 3", 
                 "local use 4", "local use 5", "local use 6", "local use 7")
         self.syslog_file = syslog_fifo 
@@ -44,10 +45,14 @@ class Log:
         self.amqp_exchange = amqp_exchange
 
         # Fifo initialisation
-        try:
-            self.syslog_fifo = open(syslog_fifo, 'w')
-        except Exception, err:
-            print "Fifo exception: %s" % (err)
+        if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
+            try:
+                self.syslog_fifo = open(syslog_fifo, 'w', 0)
+            except Exception, err:
+                print "Fifo exception: %s" % (err)
+                sys.exit(1)
+        else:
+            print "%s is not a fifo file" % (syslog_fifo)
             sys.exit(1)
 
         # Socket initialisation
@@ -101,14 +106,13 @@ class Log:
         while True:
             try:
                 self.data,self.addr = self.mysocket.recvfrom(self.socket_buffer)
-                # send to gelfify 
+                # Send to gelfify 
                 gelf_msg = self.gelfify(self.data)
                 print gelf_msg
-                # send to fifo
+                # Send to fifo
                 self.__write_to_fifo__(gelf_msg)
-                # send to amqp
-                self.channel.basic_publish(exchange=self.amqp_exchange, 
-                        routing_key=amqp_rkey, body=gelf_msg)
+                # Send to amqp
+                self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=gelf_msg) 
             except KeyboardInterrupt:
                 print "Keyboard interruption"
                 self.close()
@@ -137,10 +141,10 @@ class Log:
     def close(self):
         "Close the socket and fifo"
 
-        # Fifo
+        # Close fifo
         self.syslog_fifo.close()
 
-        # Socket
+        # Close socket
         self.mysocket.close()
         os.remove(self.syslog_socket)
 
