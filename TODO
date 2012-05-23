@@ -3,5 +3,6 @@ Priority HIGH:
 
 Priority medium:
     Code cleaning
+    Implement write to fifo file
 
 Priority low:
