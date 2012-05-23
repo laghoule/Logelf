@@ -1,8 +1,17 @@
+TODO
+----
+
 Priority HIGH:
     Fix facility
 
 Priority medium:
     Code cleaning
-    Implement write to fifo file
 
 Priority low:
+
+
+POSSIBLE BUG
+------------
+
+* pika.BlockingConnection (should use async function)
+* write to fifo
