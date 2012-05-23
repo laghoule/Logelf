@@ -3,6 +3,8 @@ Requirement
 
 python
 python-pika
+python-gevent 
+python-greenlet
 
 
 Description
