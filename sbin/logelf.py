@@ -4,9 +4,10 @@
 # Copyright GPLv3
 # 05.16.2012 
 
+import gevent
+from gevent import socket
 import json
 import time
-import socket
 import pika
 import sys
 import os
