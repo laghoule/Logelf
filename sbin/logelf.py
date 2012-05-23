@@ -68,6 +68,10 @@ class Log:
                 self.close()
                 break
 
+    def write_to_fifo(self, fifo_file):
+        "Write to a fifo file"
+        pass
+
     def send(self, amqp_rkey):
         "Send syslog messages to AMQP server"
 

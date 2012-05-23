@@ -35,9 +35,9 @@ install: build
 
 	# Add here commands to install the package into debian/<packagename>
 	#$(MAKE) prefix=`pwd`/debian/`dh_listpackages`/usr install
-	install -m 644 -o root -g root $(CURDIR)/etc/logelf.conf $(CURDIR)/debian/logelf/etc/
-	install -m 644 -o root -g root $(CURDIR)/etc/init.d/logelf $(CURDIR)/debian/logelf/etc/init.d/
-	install -m 755 -o root -g root $(CURDIR)/sbin/logelf.py $(CURDIR)/debian/logelf/usr/sbin/
+	install -m 644 -o root -g root $(CURDIR)/etc/logelf.conf $(CURDIR)/debian/logelf-server/etc/
+	install -m 644 -o root -g root $(CURDIR)/etc/init.d/logelf $(CURDIR)/debian/logelf-server/etc/init.d/
+	install -m 755 -o root -g root $(CURDIR)/sbin/logelf.py $(CURDIR)/debian/logelf-server/usr/sbin/
 
 # Build architecture-independent files here.
 binary-indep: build install

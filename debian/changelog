@@ -1,5 +1,5 @@
-logelf (0.1-1) unstable; urgency=low
+logelf-server (0.1-1) unstable; urgency=low
 
-  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+  * Initial release
 
  -- Debian package builder <debbuild@onebigplanet.com>  Tue, 22 May 2012 14:26:12 -0400

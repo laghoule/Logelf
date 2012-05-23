@@ -1,4 +1,4 @@
-Source: logelf
+Source: logelf-server
 Section: misc
 Priority: extra
 Maintainer: Debian package builder <debbuild@onebigplanet.com>
@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 7.0.50~)
 Standards-Version: 3.8.4
 Homepage: https://github.com/laghoule/Logelf
 
-Package: logelf
+Package: logelf-server
 Architecture: any
 Depends: python-pika(>=0.9.5), python-gevent, python-greenlet, python
 Description: Logelf is a syslog daemon who format data in gelf, and send to an AMQP server. 
