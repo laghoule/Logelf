@@ -38,8 +38,8 @@ class Log:
                 "clock related", "local use 0", "local use 1", 
                 "local use 2", "local use 2", "local use 3", 
                 "local use 4", "local use 5", "local use 6", "local use 7")
-        self.syslog_file = syslog_fifo 
         self.hostname = socket.gethostname()
+        self.syslog_fifo = syslog_fifo
         self.syslog_socket = syslog_socket
         self.socket_buffer = socket_buffer
         self.amqp_exchange = amqp_exchange
@@ -47,7 +47,7 @@ class Log:
         # Fifo initialisation
         if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
             try:
-                self.syslog_fifo = open(syslog_fifo, 'w', 0)
+                self.syslog_fifo = open(syslog_fifo, 'w+', 0)
             except Exception, err:
                 print "Fifo exception: %s" % (err)
                 sys.exit(1)
