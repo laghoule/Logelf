@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 ### BEGIN INIT INFO
-# Provides:          logelf
+# Provides:          logelf-server
 # Required-Start:    $network
 # Required-Stop:     $network
 # Default-Start:     2 3 4 5
