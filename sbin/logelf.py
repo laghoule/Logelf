@@ -4,6 +4,7 @@
 # Copyright GPLv3
 # 05.16.2012 
 
+from socket import gethostname
 import gevent
 from gevent import socket
 import json
@@ -38,7 +39,7 @@ class Log:
                 "clock related", "local use 0", "local use 1", 
                 "local use 2", "local use 2", "local use 3", 
                 "local use 4", "local use 5", "local use 6", "local use 7")
-        self.hostname = socket.gethostname()
+        self.hostname = gethostname()
         self.syslog_fifo = syslog_fifo
         self.syslog_socket = syslog_socket
         self.socket_buffer = socket_buffer
