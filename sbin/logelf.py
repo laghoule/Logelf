@@ -132,7 +132,7 @@ class Log:
         self.severity = int(self.priority) - self.facility * 8
         self.time = msg[1] + " " + msg[2] + " " + msg[3]
         self.header = " ".join(msg[4:])
-        if msg[4].find("["):
+        if self.header.find("["):
             # With PID
             self.daemon = msg[4].replace(":", "").split("[")
             self.short_msg = self.daemon[0].lower() + " pid: %s" % (self.daemon[1].replace("]", ""))
