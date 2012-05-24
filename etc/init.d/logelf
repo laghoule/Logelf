@@ -24,25 +24,21 @@ PIDFILE=/var/run/logelf
 case "$1" in
 start)
         echo -n "Starting logelf daemon:" "logelf "
-        for NAME in $AUTOSTART ; do
-            if [ ! -e $PIDFILE-$NAME.pid ]; then
-                echo -n "$NAME "
-                $DAEMON -c /etc/logelf.conf &
-                echo $! > $PIDFILE.pid
-            else
-                echo "Pidfile already exit $PIDFILE.pid"
-                exit 1
-            fi
-        done
+        if [ ! -e $PIDFILE.pid ]; then
+            echo -n "$NAME "
+            $DAEMON -c /etc/logelf.conf &
+            echo $! > $PIDFILE.pid
+        else
+            echo "Pidfile already exit $PIDFILE.pid"
+            exit 1
+        fi
         echo
         ;;
 stop)
         echo -n "Stopping logelf daemon:" "logelf "
-        for NAME in $AUTOSTART ; do
-            echo -n "$NAME "
-            kill `pgrep -f "$DAEMON -c /etc/logelf.conf"`
-            rm $PIDFILE.pid
-        done
+        echo -n "$NAME "
+        kill `pgrep -f "$DAEMON -c /etc/logelf.conf"`
+        rm $PIDFILE.pid
         echo
         ;;
 restart)
@@ -51,9 +47,7 @@ restart)
         $0 start
         ;;
 status)
-        for NAME in $AUTOSTART ; do
-            status_of_proc -p $PIDFILE-$NAME $DAEMON $NAME && exit 0 || exit $?
-        done
+        status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $?
         ;;
 *)  log_action_msg "Usage: /etc/init.d/logelf {start|stop|status|restart}"
         exit 2
