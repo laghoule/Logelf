@@ -110,7 +110,6 @@ class Log:
                 self.data,self.addr = self.mysocket.recvfrom(self.socket_buffer)
                 # Send to gelfify 
                 gelf_msg = self.gelfify(self.data)
-                print gelf_msg
                 # Send to fifo
                 self.__write_to_fifo__(gelf_msg)
                 # Send to amqp
