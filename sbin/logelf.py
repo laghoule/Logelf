@@ -7,6 +7,7 @@
 from socket import gethostname
 import gevent
 from gevent import socket
+import string
 import json
 import time
 import pika
@@ -130,8 +131,14 @@ class Log:
         self.facility = int(self.priority) / 8
         self.severity = int(self.priority) - self.facility * 8
         self.time = msg[1] + " " + msg[2] + " " + msg[3]
-        self.short_msg = msg[4].replace(":", "")
         self.header = " ".join(msg[4:])
+        if msg[4].find("["):
+            # With PID
+            self.daemon = msg[4].replace(":", "").split("[")
+            self.short_msg = self.daemon[0].lower() + " pid: %s" % (self.daemon[1].replace("]", ""))
+        else:
+            # Whitout PID
+            self.short_msg = msg[4].replace(":", "")
 
         self.gelf_msg = {'version': "1", 'timestamp': self.time, 'short_message': self.short_msg,
                         'full_message': self.header , 'host': self.hostname, 'level': self.severity,
