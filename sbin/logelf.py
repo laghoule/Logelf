@@ -49,7 +49,8 @@ class Log:
         # Fifo initialisation
         if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
             try:
-                self.syslog_fifo = open(syslog_fifo, 'w+', 0)
+                fd = os.open(syslog_fifo, os.O_RDWR | os.O_NONBLOCK, 0)
+                self.fifo_file = os.fdopen(fd,'w', 0)
             except Exception, err:
                 print "Fifo exception: %s" % (err)
                 sys.exit(1)
@@ -100,7 +101,18 @@ class Log:
     def __write_to_fifo__(self, gelf_msg):
         "Write to a fifo file"
 
-        self.syslog_fifo.write(gelf_msg + "\n")
+        # Try is a kludge to clear the buffer of the fifo
+        # If there is no consumer of the fifo, buffer will fill
+        try:
+            self.fifo_file.write(gelf_msg + "\n")
+        except IOError:
+            fd = os.open(self.syslog_fifo, os.O_RDWR | os.O_NONBLOCK)
+            flush_syslog_fifo = os.fdopen(fd, 'r')
+            flush_syslog_fifo.read()
+            flush_syslog_fifo.close()
+        except Exception, err:
+            print "Exception: %s" % (err)
+            sys.exit(1)
 
     def send(self, amqp_rkey):
         "Send syslog messages to AMQP server"
@@ -110,6 +122,7 @@ class Log:
                 self.data,self.addr = self.mysocket.recvfrom(self.socket_buffer)
                 # Send to gelfify 
                 gelf_msg = self.gelfify(self.data)
+                print gelf_msg
                 # Send to fifo
                 self.__write_to_fifo__(gelf_msg)
                 # Send to amqp
@@ -133,8 +146,12 @@ class Log:
         self.header = " ".join(msg[4:])
         if self.header.find("["):
             # With PID
+            # REVIEW THIS PATCH
             self.daemon = msg[4].replace(":", "").split("[")
-            self.short_msg = self.daemon[0].lower() + " pid: %s" % (self.daemon[1].replace("]", ""))
+            if len(self.daemon) >= 2:
+                self.short_msg = self.daemon[0].lower() + " pid: %s" % (self.daemon[1].replace("]", ""))
+            else:
+                self.short_msg = msg[4].replace(":", "")
         else:
             # Whitout PID
             self.short_msg = msg[4].replace(":", "")
@@ -149,7 +166,7 @@ class Log:
         "Close the socket and fifo"
 
         # Close fifo
-        self.syslog_fifo.close()
+        self.fifo_file.close()
 
         # Close socket
         self.mysocket.close()
@@ -184,7 +201,7 @@ def main():
     cacertfile = config.get("ssl", "cacertfile")
     certfile = config.get("ssl", "certfile")
     keyfile = config.get("ssl", "keyfile")
-    ssl = { 'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile }
+    ssl = {'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile}
     credentials = pika.PlainCredentials(username, password)
 
     log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer)
