@@ -104,7 +104,7 @@ class SendLog:
                     raise Exception('Wrong type, must be "system" of "kernel"')
                     sys.exit(1)
                 # Send to gelfify 
-                gelf_msg = self.gelfify("kernel", data)
+                gelf_msg = self.gelfify(syslog_type, data)
                 # Send to local fifo
                 self.__write_to_fifo__(gelf_msg)
                 # Send to AMQP broker 
