@@ -4,6 +4,7 @@
 # Copyright GPLv3
 # 05.16.2012 
 
+import thread
 from socket import gethostname
 import gevent
 from gevent import socket
@@ -22,20 +23,20 @@ usage = """logelf -c CONFIG_FILE
 
 __metaclass__ = type
 
-class Log:
+class SendLog:
     "Class of syslog log"
 
     def __init__(self, amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer): 
         "Class initialisation"
 
         # Global class var
-        self.facilities = ("kernel messages", "user-level messages", 
+        self.facilities = ("kernel", "user-level", 
                 "mail system", "system daemons", 
-                "security/authorization  messages",
+                "security/authorization",
                 "messages generated internally by syslogd", 
                 "line printer subsystem", "network news subsystem",
                 "UUCP subsystem", "clock related", 
-                "security/authorization messages", "FTP daemon", 
+                "security/authorization", "FTP daemon", 
                 "NTP subsystem", "log audit", "log alert", 
                 "clock related", "local use 0", "local use 1", 
                 "local use 2", "local use 2", "local use 3", 
@@ -46,7 +47,14 @@ class Log:
         self.socket_buffer = socket_buffer
         self.amqp_exchange = amqp_exchange
 
-        # Fifo initialisation
+        # /proc/kmsg initialisation
+        try:
+            self.kmsg_file = open('/proc/kmsg', 'r', 0)
+        except Exception, err:
+            print "Exception: %s" % (err)
+            sys.exit(1)
+
+        # /dev/log initialisation
         if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
             try:
                 fd = os.open(syslog_fifo, os.O_RDWR | os.O_NONBLOCK, 0)
@@ -85,14 +93,22 @@ class Log:
         #self.connection.add_timeout(rpc_timeout, self.__on_timeout__)
         self.channel = self.connection.channel()
 
-    def read(self):
-        "Read input from syslog socket" 
-        
+    def process_log(self, syslog_type, amqp_rkey):
         while True:
             try:
-                self.data,self.addr = self.mysocket.recvfrom(self.socket_buffer)
-                gelf_msg = self.gelfify(self.data)
-                print gelf_msg
+                if syslog_type == "kernel":
+                    data = self.kmsg_file.readline()
+                elif syslog_type == "system":
+                    data,addr = self.mysocket.recvfrom(self.socket_buffer)
+                else:
+                    raise Exception('Wrong type, must be "system" of "kernel"')
+                    sys.exit(1)
+                # Send to gelfify 
+                gelf_msg = self.gelfify("kernel", data)
+                # Send to local fifo
+                self.__write_to_fifo__(gelf_msg)
+                # Send to AMQP broker 
+                self.__send_to_broker__(amqp_rkey, data)
             except KeyboardInterrupt:
                 print "Keyboard interruption"
                 self.close()
@@ -101,7 +117,7 @@ class Log:
     def __write_to_fifo__(self, gelf_msg):
         "Write to a fifo file"
 
-        # Try is a kludge to clear the buffer of the fifo
+        # This is a kludge to clear the buffer of the fifo
         # If there is no consumer of the fifo, buffer will fill
         try:
             self.fifo_file.write(gelf_msg + "\n")
@@ -114,24 +130,17 @@ class Log:
             print "Exception: %s" % (err)
             sys.exit(1)
 
-    def send(self, amqp_rkey):
-        "Send syslog messages to AMQP server"
+    def __send_to_broker__(self, amqp_rkey, amqp_msg):
+        "Send messages to AMQP broker"
+        
+        try:
+            self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
+        except Exception, err:
+            print "Exception: %s" % (err)
+            self.close()
+            sys.exit(1)
 
-        while True:
-            try:
-                self.data,self.addr = self.mysocket.recvfrom(self.socket_buffer)
-                # Send to gelfify 
-                gelf_msg = self.gelfify(self.data)
-                # Send to fifo
-                self.__write_to_fifo__(gelf_msg)
-                # Send to amqp
-                self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=gelf_msg) 
-            except KeyboardInterrupt:
-                print "Keyboard interruption"
-                self.close()
-                break
-
-    def gelfify(self, syslog_msg):
+    def gelfify(self, syslog_type, syslog_msg):
         "Gelfify the syslog messages"
         
         msg1 = syslog_msg.replace("<", "")
@@ -141,30 +150,37 @@ class Log:
         self.priority = msg[0]
         self.facility = int(self.priority) / 8
         self.severity = int(self.priority) - self.facility * 8
-        self.time = msg[1] + " " + msg[2] + " " + msg[3]
-        self.header = " ".join(msg[4:])
-        if self.header.find("["):
-            # With PID
-            # REVIEW THIS PATCH
-            self.daemon = msg[4].replace(":", "").split("[")
-            if len(self.daemon) >= 2:
-                self.short_msg = self.daemon[0].lower() + " pid: %s" % (self.daemon[1].replace("]", ""))
-            else:
-                self.short_msg = msg[4].replace(":", "")
-        else:
-            # Whitout PID
-            self.short_msg = msg[4].replace(":", "")
 
-        self.gelf_msg = {'version': "1", 'timestamp': self.time, 'short_message': self.short_msg,
+        if syslog_type == "system":
+            self.header = " ".join(msg[4:])
+        elif syslog_type == "kernel":
+            self.header = " ".join(msg[1:])
+        else:
+            raise Exception('Wrong type, must be "system" of "kernel"')
+
+        self.gelf_msg = {'version': "1", 'timestamp': time.asctime(), 'short_message': self.header,
                         'full_message': self.header , 'host': self.hostname, 'level': self.severity,
                         'facility': self.facilities[int(self.facility)]}
 
+        print self.gelf_msg
+
         return json.dumps(self.gelf_msg)
+
+    def run(self, amqp_rkey):
+        "Run the show"
+
+        # Separate thread to read /proc/ksmg
+        thread.start_new_thread(self.process_log, ('kernel', amqp_rkey,))
+        # Read /dev/log
+        self.process_log('system', amqp_rkey)
     
     def close(self):
         "Close the socket and fifo"
 
-        # Close fifo
+        # Close /proc/kmsg
+        self.ksm_fifo.close()
+
+        # Close localfifo
         self.fifo_file.close()
 
         # Close socket
@@ -203,8 +219,8 @@ def main():
     ssl = {'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile}
     credentials = pika.PlainCredentials(username, password)
 
-    log = Log(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer)
-    log.send("log")
+    log = SendLog(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer)
+    log.run("log")
 
 if __name__ == '__main__':
     main()
