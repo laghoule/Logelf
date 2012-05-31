@@ -54,7 +54,7 @@ class SendLog:
             print "Exception: %s" % (err)
             sys.exit(1)
 
-        # /dev/log initialisation
+        # Our local fifo initialisation
         if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
             try:
                 fd = os.open(syslog_fifo, os.O_RDWR | os.O_NONBLOCK, 0)
@@ -66,7 +66,7 @@ class SendLog:
             print "%s is not a fifo file" % (syslog_fifo)
             sys.exit(1)
 
-        # Socket initialisation
+        # /dev/log initialisation
         try:
             self.mysocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
             self.mysocket.bind(syslog_socket)
@@ -94,6 +94,8 @@ class SendLog:
         self.channel = self.connection.channel()
 
     def process_log(self, syslog_type, amqp_rkey):
+        "Process the log, and send to AMQP broker"
+
         while True:
             try:
                 if syslog_type == "kernel":
@@ -108,7 +110,7 @@ class SendLog:
                 # Send to local fifo
                 self.__write_to_fifo__(gelf_msg)
                 # Send to AMQP broker 
-                self.__send_to_broker__(amqp_rkey, data)
+                self.__send_to_broker__(amqp_rkey, gelf_msg)
             except KeyboardInterrupt:
                 print "Keyboard interruption"
                 self.close()
@@ -162,14 +164,12 @@ class SendLog:
                         'full_message': self.header , 'host': self.hostname, 'level': self.severity,
                         'facility': self.facilities[int(self.facility)]}
 
-        print self.gelf_msg
-
         return json.dumps(self.gelf_msg)
 
     def run(self, amqp_rkey):
         "Run the show"
 
-        # Separate thread to read /proc/ksmg
+        # Separate thread to read /proc/kmsg
         thread.start_new_thread(self.process_log, ('kernel', amqp_rkey,))
         # Read /dev/log
         self.process_log('system', amqp_rkey)
