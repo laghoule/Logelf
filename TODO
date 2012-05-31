@@ -2,7 +2,6 @@ TODO
 ----
 
 Priority HIGH:
-    Handle /proc/kmsg (kernel messages)
     Fix facility
     Fix handling with /dev/log (kill by initscript)
 
@@ -17,3 +16,4 @@ POSSIBLE BUG
 
 * pika.BlockingConnection (should use async function)
 * write to fifo
+* thread issues with the handling of /proc/kmsg
