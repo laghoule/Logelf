@@ -139,7 +139,6 @@ class SendLog:
             self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
         except Exception, err:
             print "Exception: %s" % (err)
-            self.close()
             sys.exit(1)
 
     def gelfify(self, syslog_type, syslog_msg):
@@ -177,8 +176,11 @@ class SendLog:
     def close(self):
         "Close the socket and fifo"
 
+        # Exit the thread reading /proc/kmsg
+        thread.exit()
+
         # Close /proc/kmsg
-        self.ksm_fifo.close()
+        self.kmsg_file.close()
 
         # Close localfifo
         self.fifo_file.close()
