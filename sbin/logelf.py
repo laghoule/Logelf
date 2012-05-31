@@ -33,7 +33,7 @@ class SendLog:
         self.facilities = ("kernel", "user-level", 
                 "mail system", "system daemons", 
                 "security/authorization",
-                "messages generated internally by syslogd", 
+                "syslogd generated message", 
                 "line printer subsystem", "network news subsystem",
                 "UUCP subsystem", "clock related", 
                 "security/authorization", "FTP daemon", 
@@ -68,8 +68,8 @@ class SendLog:
 
         # /dev/log initialisation
         try:
-            self.mysocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-            self.mysocket.bind(syslog_socket)
+            self.devlog_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            self.devlog_socket.bind(syslog_socket)
         except Exception, err:
             print "Socket exception: %s" % (err)
             sys.exit(1)
@@ -101,7 +101,7 @@ class SendLog:
                 if syslog_type == "kernel":
                     data = self.kmsg_file.readline()
                 elif syslog_type == "system":
-                    data,addr = self.mysocket.recvfrom(self.socket_buffer)
+                    data,addr = self.devlog_socket.recvfrom(self.socket_buffer)
                 else:
                     raise Exception('Wrong type, must be "system" of "kernel"')
                     sys.exit(1)
@@ -184,7 +184,7 @@ class SendLog:
         self.fifo_file.close()
 
         # Close socket
-        self.mysocket.close()
+        self.devlog_socket.close()
         os.remove(self.syslog_socket)
 
 
