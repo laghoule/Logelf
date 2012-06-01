@@ -26,7 +26,8 @@ __metaclass__ = type
 class SendLog:
     "Class of syslog log"
 
-    def __init__(self, amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer): 
+    def __init__(self, logelf_conf, amqp_server, virtualhost, credentials, 
+            amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer): 
         "Class initialisation"
 
         # Global class var
@@ -46,13 +47,17 @@ class SendLog:
         self.syslog_socket = syslog_socket
         self.socket_buffer = socket_buffer
         self.amqp_exchange = amqp_exchange
+        self.logelf_conf = logelf_conf
+
+
+        if self.logelf_conf.get('loadavg') == "on":
+            self.loadavg_file = open('/proc/loadavg', 'r', 0)
+    
+        if self.logelf_conf.get('memstat') == "on":
+            self.memstat_file = open('/proc/meminfo', 'r', 0)
 
         # /proc/kmsg initialisation
-        try:
-            self.kmsg_file = open('/proc/kmsg', 'r', 0)
-        except Exception, err:
-            print "Exception: %s" % (err)
-            sys.exit(1)
+        self.kmsg_file = open('/proc/kmsg', 'r', 0)
 
         # Our local fifo initialisation
         if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
@@ -78,13 +83,20 @@ class SendLog:
         while True:
             try:
                 if ssl.get('enable') == "on":
-                    #self.ssl_options = {'ca_certs': ssl_info.get('cacert'), 'certfile': ssl_info.get('cert'), keyfile': ssl_info.get('key')}
-                    #self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server, credentials=credentials, virtual_host=virtualhost, ssl=True, ssl_options=self.ssl_options))
-                    print "AMQPS support broken right now (blame pika)... fallback to normal AMQP"
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server, credentials=credentials, virtual_host=virtualhost))
+                    #self.ssl_options = {'ca_certs': ssl_info.get('cacert'), 
+                    #                    'certfile': ssl_info.get('cert'), 
+                    #                    keyfile': ssl_info.get('key')}
+                    #self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
+                    #                        credentials=credentials, virtual_host=virtualhost,
+                    #                        ssl=True, ssl_options=self.ssl_options))
+                    print """AMQPS support broken right now (blame pika)... 
+                            fallback to normal AMQP"""
+                    self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
+                                             credentials=credentials, virtual_host=virtualhost))
                     break
                 elif ssl.get('enable') == "off":
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server, credentials=credentials, virtual_host=virtualhost))
+                    self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
+                                             credentials=credentials, virtual_host=virtualhost))
                     break
             except Exception, err:
                 print "Exception: %s, will retry in 5 sec.." % (err)
@@ -103,7 +115,7 @@ class SendLog:
                 elif syslog_type == "system":
                     data,addr = self.devlog_socket.recvfrom(self.socket_buffer)
                 else:
-                    raise Exception('Wrong type, must be "system" of "kernel"')
+                    raise Exception('Wrong type, must be "system" or "kernel"')
                     sys.exit(1)
                 # Send to gelfify 
                 gelf_msg = self.gelfify(syslog_type, data)
@@ -115,6 +127,23 @@ class SendLog:
                 print "Keyboard interruption"
                 self.close()
                 break
+
+    def __read_loadavg__(self):
+        "Read /proc/loadavg"
+
+        self.loadavg_file.seek(0)
+        return self.loadavg_file.read().split() 
+
+    def __read_memstat__(self):
+        "Read /prod/meminfo"
+
+        meminfo = [None, None]
+        self.memstat_file.seek(0)
+
+        for i in range(2):
+            meminfo[i] = self.memstat_file.readline().split()[1]
+
+        return meminfo
 
     def __write_to_fifo__(self, gelf_msg):
         "Write to a fifo file"
@@ -151,15 +180,25 @@ class SendLog:
         self.priority = msg[0]
         self.facility = int(self.priority) / 8
         self.severity = int(self.priority) - self.facility * 8
+        self.header = ""
 
         if syslog_type == "system":
-            self.header = " ".join(msg[4:])
+            self.header_short = " ".join(msg[4:])
         elif syslog_type == "kernel":
-            self.header = " ".join(msg[1:])
+            self.header_short = " ".join(msg[1:])
         else:
-            raise Exception('Wrong type, must be "system" of "kernel"')
+            raise Exception('Wrong type, must be "system" or "kernel"')
 
-        self.gelf_msg = {'version': "1", 'timestamp': time.asctime(), 'short_message': self.header,
+        self.header = self.header_short
+        if self.logelf_conf.get('loadavg') == "on":
+            loadavg = self.__read_loadavg__()
+            self.header += "\nLoad average: [%s] [%s] [%s]" % (loadavg[0], loadavg[1], loadavg[2])
+
+        if self.logelf_conf.get('memstat') == "on":
+            memstat = self.__read_memstat__()
+            self.header += "\nMemory stats: [Free %s] [Used %s]" % (memstat[0], memstat[1])
+
+        self.gelf_msg = {'version': "1", 'timestamp': time.asctime(), 'short_message': self.header_short,
                         'full_message': self.header , 'host': self.hostname, 'level': self.severity,
                         'facility': self.facilities[int(self.facility)]}
 
@@ -175,6 +214,13 @@ class SendLog:
     
     def close(self):
         "Close the socket and fifo"
+
+        # Close /proc/_proc_file
+        if self.logelf_conf.get('loadavg') == "on":
+            self.loadavg_file.close()
+
+        if self.logelf_conf.get('memstat') == "on":
+            self.memstat_file.close()
 
         # Exit the thread reading /proc/kmsg
         thread.exit()
@@ -205,6 +251,9 @@ def main():
     config = ConfigParser.RawConfigParser()
     config.readfp(config_fh)
 
+    # Config var
+    logelf_loadavg = config.get("logelf", "loadavg")
+    logelf_memstat = config.get("logelf", "memstat")
     syslog_fifo = config.get("syslog", "fifo")
     syslog_socket = config.get("syslog", "socket")
     socket_buffer = config.getint("syslog", "buffer")
@@ -218,10 +267,20 @@ def main():
     cacertfile = config.get("ssl", "cacertfile")
     certfile = config.get("ssl", "certfile")
     keyfile = config.get("ssl", "keyfile")
-    ssl = {'enable': ssl_enable, 'cacert': cacertfile, 'cert': certfile, 'key': keyfile}
+
+    # Config dict
+    logelf_conf = {'loadavg': logelf_loadavg, 
+            'memstat': logelf_memstat}
+    ssl = {'enable': ssl_enable, 'cacert': cacertfile, 
+            'cert': certfile, 'key': keyfile}
+
+    # Credential for AMQP broker
     credentials = pika.PlainCredentials(username, password)
 
-    log = SendLog(amqp_server, virtualhost, credentials, amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer)
+    log = SendLog(logelf_conf, amqp_server, virtualhost,
+            credentials, amqp_exchange, ssl, syslog_fifo, 
+            syslog_socket, socket_buffer)
+
     log.run("log")
 
 if __name__ == '__main__':
