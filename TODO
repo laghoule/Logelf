@@ -2,13 +2,14 @@ TODO
 ----
 
 Priority HIGH:
-    Fix facility
     Fix handling with /dev/log (kill by initscript)
 
 Priority medium:
+    Initscript cleaning
     Code cleaning
 
 Priority low:
+    Add true daemon facilities (daemon module) 
 
 
 POSSIBLE BUG
