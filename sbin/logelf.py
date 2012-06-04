@@ -103,6 +103,7 @@ class SendLog:
                 time.sleep(5)
 
         #self.connection.add_timeout(rpc_timeout, self.__on_timeout__)
+        #self.channel = self.connection.channel(self.__on_open_channel__)
         self.channel = self.connection.channel()
 
     def process_log(self, syslog_type, amqp_rkey):
@@ -164,11 +165,12 @@ class SendLog:
     def __send_to_broker__(self, amqp_rkey, amqp_msg):
         "Send messages to AMQP broker"
         
-        try:
-            self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
-        except Exception, err:
-            print "Exception: %s" % (err)
-            sys.exit(1)
+        self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
+        #try:
+        #    self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
+        #except Exception, err:
+        #    print "Exception: %s" % (err)
+        #    sys.exit(1)
 
     def gelfify(self, syslog_type, syslog_msg):
         "Gelfify the syslog messages"
@@ -192,7 +194,7 @@ class SendLog:
         self.header = self.header_short
         if self.logelf_conf.get('loadavg') == "on":
             loadavg = self.__read_loadavg__()
-            if len(loadavg) == 3:
+            if len(loadavg) >= 3:
                 self.header += "\nLoad average: [%s] [%s] [%s]" % (loadavg[0], loadavg[1], loadavg[2])
 
         if self.logelf_conf.get('memstat') == "on":
