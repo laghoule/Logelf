@@ -192,11 +192,13 @@ class SendLog:
         self.header = self.header_short
         if self.logelf_conf.get('loadavg') == "on":
             loadavg = self.__read_loadavg__()
-            self.header += "\nLoad average: [%s] [%s] [%s]" % (loadavg[0], loadavg[1], loadavg[2])
+            if len(loadavg) == 3:
+                self.header += "\nLoad average: [%s] [%s] [%s]" % (loadavg[0], loadavg[1], loadavg[2])
 
         if self.logelf_conf.get('memstat') == "on":
             memstat = self.__read_memstat__()
-            self.header += "\nMemory stats: [Free %s] [Used %s]" % (memstat[0], memstat[1])
+            if len(memstat) == 2:
+                self.header += "\nMemory stats: [Free %s] [Used %s]" % (memstat[0], memstat[1])
 
         self.gelf_msg = {'version': "1", 'timestamp': time.asctime(), 'short_message': self.header_short,
                         'full_message': self.header , 'host': self.hostname, 'level': self.severity,
