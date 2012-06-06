@@ -16,10 +16,7 @@ import stat
 import sys
 import os
 import ConfigParser
-import optparse
-
-usage = """logelf -c CONFIG_FILE
-"""
+import argparse
 
 __metaclass__ = type
 
@@ -73,7 +70,8 @@ class SendLog:
 
         # /dev/log initialisation
         try:
-            self.devlog_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            self.devlog_socket = socket.socket(socket.AF_UNIX, 
+                                            socket.SOCK_DGRAM)
             self.devlog_socket.bind(syslog_socket)
         except Exception, err:
             print "Socket exception: %s" % (err)
@@ -102,8 +100,6 @@ class SendLog:
                 print "Exception: %s, will retry in 5 sec.." % (err)
                 time.sleep(5)
 
-        #self.connection.add_timeout(rpc_timeout, self.__on_timeout__)
-        #self.channel = self.connection.channel(self.__on_open_channel__)
         self.channel = self.connection.channel()
 
     def process_log(self, syslog_type, amqp_rkey):
@@ -165,9 +161,11 @@ class SendLog:
     def __send_to_broker__(self, amqp_rkey, amqp_msg):
         "Send messages to AMQP broker"
         
-        self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
+        self.channel.basic_publish(exchange=self.amqp_exchange, 
+                        routing_key=amqp_rkey, body=amqp_msg)
         #try:
-        #    self.channel.basic_publish(exchange=self.amqp_exchange, routing_key=amqp_rkey, body=amqp_msg) 
+        #    self.channel.basic_publish(exchange=self.amqp_exchange,
+        #                    routing_key=amqp_rkey, body=amqp_msg) 
         #except Exception, err:
         #    print "Exception: %s" % (err)
         #    sys.exit(1)
@@ -195,15 +193,18 @@ class SendLog:
         if self.logelf_conf.get('loadavg') == "on":
             loadavg = self.__read_loadavg__()
             if len(loadavg) >= 3:
-                self.header += "\nLoad average: [%s] [%s] [%s]" % (loadavg[0], loadavg[1], loadavg[2])
+                self.header += "\nLoad average: [%s] [%s] [%s]" % (loadavg[0],
+                                loadavg[1], loadavg[2])
 
         if self.logelf_conf.get('memstat') == "on":
             memstat = self.__read_memstat__()
             if len(memstat) == 2:
                 self.header += "\nMemory stats: [Free %s] [Used %s]" % (memstat[0], memstat[1])
 
-        self.gelf_msg = {'version': "1", 'timestamp': time.asctime(), 'short_message': self.header_short,
-                        'full_message': self.header , 'host': self.hostname, 'level': self.severity,
+        self.gelf_msg = {'version': "1", 'timestamp': time.asctime(), 
+                        'short_message': self.header_short,
+                        'full_message': self.header , 'host': self.hostname,
+                        'level': self.severity, 
                         'facility': self.facilities[int(self.facility)]}
 
         return json.dumps(self.gelf_msg)
@@ -243,15 +244,13 @@ class SendLog:
 def main():
     "Main function"
 
-    parser = optparse.OptionParser()
-    parser.add_option("-c", "--config", dest="config",
-                  help="path to config FILE", metavar="FILE")
-    (options, args) = parser.parse_args()
-    if not options.config:
-        print 'missing --config'
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", action="store",
+                help="path to config FILE",  metavar="CONFIG_FILE")
 
-    config_fh = open(options.config)
+    args = parser.parse_args()
+
+    config_fh = open(args.config)
     config = ConfigParser.RawConfigParser()
     config.readfp(config_fh)
 
