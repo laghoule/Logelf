@@ -18,3 +18,9 @@ POSSIBLE BUG
 * pika.BlockingConnection (should use async function)
 * write to fifo
 * thread issues with the handling of /proc/kmsg
+
+BUG
+---
+
+* /dev/log isn't always remove
+* don't reconnect on AMQP restart
