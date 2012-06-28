@@ -1,13 +1,17 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Written by Pascal Gauthier <pgauthier@onebigplanet.com>
 # Copyright GPLv3
 # 05.16.2012 
 
+import resource
+import signal
+import daemon
+import lockfile
 import thread
-from socket import gethostname
 import gevent
 from gevent import socket
+from socket import gethostname
 import string
 import json
 import time
@@ -87,8 +91,7 @@ class SendLog:
                     #self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
                     #                        credentials=credentials, virtual_host=virtualhost,
                     #                        ssl=True, ssl_options=self.ssl_options))
-                    print """AMQPS support broken right now (blame pika)... 
-                            fallback to normal AMQP"""
+                    print "AMQPS support broken right now..." 
                     self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
                                              credentials=credentials, virtual_host=virtualhost))
                     break
@@ -213,9 +216,10 @@ class SendLog:
         "Run the show"
 
         # Separate thread to read /proc/kmsg
-        thread.start_new_thread(self.process_log, ('kernel', amqp_rkey,))
+        #thread.start_new_thread(self.process_log, ('kernel', amqp_rkey,))
         # Read /dev/log
         self.process_log('system', amqp_rkey)
+
     
     def close(self):
         "Close the socket and fifo"
@@ -246,7 +250,9 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("config", action="store",
-                help="path to config FILE",  metavar="CONFIG_FILE")
+                help="path to config FILE", metavar="CONFIG_FILE")
+    parser.add_argument("start", action="store_true",
+                help="start the daemon")
 
     args = parser.parse_args()
 
@@ -258,8 +264,8 @@ def main():
     logelf_loadavg = config.get("logelf", "loadavg")
     logelf_memstat = config.get("logelf", "memstat")
     syslog_fifo = config.get("syslog", "fifo")
-    syslog_socket = config.get("syslog", "socket")
-    socket_buffer = config.getint("syslog", "buffer")
+    syslog_socket = "/dev/log" 
+    socket_buffer = 1024 
     amqp_server = config.get("amqp", "server")
     amqp_exchange = config.get("amqp", "exchange")
     amqp_rkey = config.get("amqp", "routing_key")
@@ -280,11 +286,25 @@ def main():
     # Credential for AMQP broker
     credentials = pika.PlainCredentials(username, password)
 
-    log = SendLog(logelf_conf, amqp_server, virtualhost,
-            credentials, amqp_exchange, ssl, syslog_fifo, 
-            syslog_socket, socket_buffer)
+    # Daemonification
+    context = daemon.DaemonContext(
+                working_directory='/',
+                #detach_process=False,
+                pidfile=lockfile.FileLock('/var/run/logelf.pid'),
+                # Fix problem with gevent + daemon
+                files_preserve=range(resource.getrlimit(
+                                        resource.RLIMIT_NOFILE)[1])
+                )
 
-    log.run("log")
+    with context:
+        log = SendLog(logelf_conf, amqp_server, virtualhost,
+                credentials, amqp_exchange, ssl, syslog_fifo, 
+                syslog_socket, socket_buffer)
+        try:
+            log.run("log")
+        finally:
+            log.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
