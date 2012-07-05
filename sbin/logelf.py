@@ -6,11 +6,14 @@
 
 import resource
 import signal
+import atexit
 import daemon
 import lockfile
 import thread
+import socket
 import gevent
-from gevent import socket
+import geventdaemon
+from gevent import socket, reinit
 from socket import gethostname
 import string
 import json
@@ -125,7 +128,7 @@ class SendLog:
                 self.__send_to_broker__(amqp_rkey, gelf_msg)
             except KeyboardInterrupt:
                 print "Keyboard interruption"
-                self.close()
+                ##self.close()
                 break
 
     def __read_loadavg__(self):
@@ -216,7 +219,7 @@ class SendLog:
         "Run the show"
 
         # Separate thread to read /proc/kmsg
-        #thread.start_new_thread(self.process_log, ('kernel', amqp_rkey,))
+        thread.start_new_thread(self.process_log, ('kernel', amqp_rkey,))
         # Read /dev/log
         self.process_log('system', amqp_rkey)
 
@@ -232,10 +235,12 @@ class SendLog:
             self.memstat_file.close()
 
         # Exit the thread reading /proc/kmsg
-        thread.exit()
+        # Bug with python-daemon 
+        #thread.exit()
 
         # Close /proc/kmsg
-        self.kmsg_file.close()
+        # Bug with python-daemon + thread
+        #self.kmsg_file.close()
 
         # Close localfifo
         self.fifo_file.close()
@@ -243,6 +248,8 @@ class SendLog:
         # Close socket
         self.devlog_socket.close()
         os.remove(self.syslog_socket)
+    
+        print "Closing done..."
 
 
 def main():
@@ -287,23 +294,34 @@ def main():
     credentials = pika.PlainCredentials(username, password)
 
     # Daemonification
-    context = daemon.DaemonContext(
+    stdout_file = open('/var/log/logelf.log', 'w+')
+    context = geventdaemon.GeventDaemonContext(
+                monkey_greenlet_report=False,
+                stdout=stdout_file,
+                stderr=stdout_file,
                 working_directory='/',
                 #detach_process=False,
                 pidfile=lockfile.FileLock('/var/run/logelf.pid'),
-                # Fix problem with gevent + daemon
-                files_preserve=range(resource.getrlimit(
-                                        resource.RLIMIT_NOFILE)[1])
                 )
 
     with context:
         log = SendLog(logelf_conf, amqp_server, virtualhost,
                 credentials, amqp_exchange, ssl, syslog_fifo, 
                 syslog_socket, socket_buffer)
+
+        context.signal_map = {
+            signal.SIGTERM: log.close,
+            signal.SIGHUP:  'terminate',
+            }
+
+        atexit.register(log.close)
+    
         try:
+            print "THIS IS THE BEGINNING"
             log.run("log")
         finally:
-            log.close()
+            print "THIS IS THE END..."
+            context.close()
 
 
 if __name__ == "__main__":
