@@ -2,14 +2,13 @@ TODO
 ----
 
 Priority HIGH:
-    Fix handling with /dev/log (kill by initscript)
+    Add true daemon facilities (daemon module) 
 
 Priority medium:
-    Initscript cleaning
+    Fix initscript 
     Code cleaning
 
 Priority low:
-    Add true daemon facilities (daemon module) 
 
 
 POSSIBLE BUG
@@ -22,5 +21,7 @@ POSSIBLE BUG
 BUG
 ---
 
+* logelf logfile bufferize data
+* Create fifo if it doesn't exist
 * /dev/log isn't always remove
 * don't reconnect on AMQP restart
