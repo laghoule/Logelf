@@ -4,7 +4,6 @@
 # Copyright GPLv3
 # 05.16.2012 
 
-import resource
 import signal
 import atexit
 import daemon
@@ -33,6 +32,7 @@ class SendLog:
     def __init__(self, logelf_conf, amqp_server, virtualhost, credentials, 
             amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer): 
         "Class initialisation"
+
 
         # Global class var
         self.facilities = ("kernel", "user-level", 
@@ -75,15 +75,6 @@ class SendLog:
             print "%s is not a fifo file" % (syslog_fifo)
             sys.exit(1)
 
-        # /dev/log initialisation
-        try:
-            self.devlog_socket = socket.socket(socket.AF_UNIX, 
-                                            socket.SOCK_DGRAM)
-            self.devlog_socket.bind(syslog_socket)
-        except Exception, err:
-            print "Socket exception: %s" % (err)
-            sys.exit(1)
-
         # AMQP initialisation
         while True:
             try:
@@ -105,6 +96,16 @@ class SendLog:
             except Exception, err:
                 print "Exception: %s, will retry in 5 sec.." % (err)
                 time.sleep(5)
+
+        # /dev/log initialisation
+        # Must be the last one to initialise
+        try:
+            self.devlog_socket = socket.socket(socket.AF_UNIX,
+                                            socket.SOCK_DGRAM)
+            self.devlog_socket.bind(syslog_socket)
+        except Exception, err:
+            print "Socket exception: %s" % (err)
+            sys.exit(1)
 
         self.channel = self.connection.channel()
 
@@ -294,35 +295,38 @@ def main():
     credentials = pika.PlainCredentials(username, password)
 
     # Daemonification
-    stdout_file = open('/var/log/logelf.log', 'w+')
+    stdout_file = open('/var/log/logelf.log', 'w+', 0)
     context = geventdaemon.GeventDaemonContext(
                 monkey_greenlet_report=False,
+                monkey=False,
                 stdout=stdout_file,
                 stderr=stdout_file,
-                working_directory='/',
-                #detach_process=False,
-                pidfile=lockfile.FileLock('/var/run/logelf.pid'),
+                detach_process=False,
+                pidfile=lockfile.FileLock('/var/run/logelf/logelf.pid'),
                 )
 
     with context:
+        print "Initializing sendlog class"
         log = SendLog(logelf_conf, amqp_server, virtualhost,
                 credentials, amqp_exchange, ssl, syslog_fifo, 
                 syslog_socket, socket_buffer)
 
+        # Signal trap for the DaemonContext
         context.signal_map = {
             signal.SIGTERM: log.close,
             signal.SIGHUP:  'terminate',
             }
 
+        # Run at exit
         atexit.register(log.close)
     
         try:
-            print "THIS IS THE BEGINNING"
+            print "Running sendlong.run method"
             log.run("log")
         finally:
-            print "THIS IS THE END..."
+            print "Closing daemon..."
             context.close()
-
+    
 
 if __name__ == "__main__":
     main()
