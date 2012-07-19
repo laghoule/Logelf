@@ -287,11 +287,6 @@ class SendLog:
         print "Closing done..."
 
 
-def check_pid(pidfile):
-    "Return true if pidfile exist" 
-    return os.path.isfile(pidfile) 
-
-
 def main():
     "Main function"
 
