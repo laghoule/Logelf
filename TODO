@@ -2,10 +2,9 @@ TODO
 ----
 
 Priority HIGH:
-    Add true daemon facilities (daemon module) 
+    Bugfix
 
 Priority medium:
-    Fix initscript 
     Code cleaning
 
 Priority low:
@@ -23,6 +22,4 @@ BUG
 
 * logelf logfile bufferize data
 * Create fifo if it doesn't exist
-* /dev/log isn't always remove
 * don't reconnect on AMQP restart
-* bug with pidfile daemoncontext (if already exist)

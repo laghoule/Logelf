@@ -4,6 +4,7 @@
 # Copyright GPLv3
 # 05.16.2012 
 
+import fcntl
 import signal
 import atexit
 import daemon
@@ -25,6 +26,41 @@ import ConfigParser
 import argparse
 
 __metaclass__ = type
+
+class PidFile(object):
+    """Context manager that locks a pid file.  Implemented as class
+    not generator because daemon.py is calling .__exit__() with no parameters
+    instead of the None, None, None specified by PEP-343.
+
+    From: http://code.activestate.com/recipes/577911-context-manager-for-a-daemon-pid-file/"""
+    # pylint: disable=R0903
+
+    def __init__(self, path):
+        self.path = path
+        self.pidfile = None
+
+    def __enter__(self):
+        self.pidfile = open(self.path, "a+")
+        try:
+            fcntl.flock(self.pidfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            raise SystemExit("Already running according to " + self.path)
+        self.pidfile.seek(0)
+        self.pidfile.truncate()
+        self.pidfile.write(str(os.getpid()))
+        self.pidfile.flush()
+        self.pidfile.seek(0)
+        return self.pidfile
+
+    def __exit__(self, exc_type=None, exc_value=None, exc_tb=None):
+        try:
+            self.pidfile.close()
+        except IOError as err:
+            # ok if file was just closed elsewhere
+            if err.errno != 9:
+                raise
+        os.remove(self.path)
+
 
 class SendLog:
     "SendLog Class object"
@@ -251,12 +287,18 @@ class SendLog:
         print "Closing done..."
 
 
+def check_pid(pidfile):
+    "Return true if pidfile exist" 
+    return os.path.isfile(pidfile) 
+
+
 def main():
     "Main function"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("config", action="store",
-                help="path to config FILE", metavar="CONFIG_FILE")
+    parser.add_argument("-c", "--config", dest="config", action="store",
+                default="/etc/logelf.conf", help="path to config FILE",
+                metavar="CONFIG_FILE")
 
     args = parser.parse_args()
 
@@ -297,7 +339,7 @@ def main():
                 monkey=False,
                 stdout=stdout_file,
                 stderr=stdout_file,
-                pidfile=lockfile.FileLock('/var/run/logelf/logelf.pid'),
+                pidfile=PidFile("/var/run/logelf.pid")
                 )
 
     with context:
@@ -324,4 +366,4 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+        main()
