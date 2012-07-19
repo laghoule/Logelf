@@ -12,7 +12,7 @@ import thread
 import socket
 import gevent
 import geventdaemon
-from gevent import socket, reinit
+from gevent import socket
 from socket import gethostname
 import string
 import json
@@ -27,12 +27,11 @@ import argparse
 __metaclass__ = type
 
 class SendLog:
-    "Class of syslog log"
+    "SendLog Class object"
 
     def __init__(self, logelf_conf, amqp_server, virtualhost, credentials, 
             amqp_exchange, ssl, syslog_fifo, syslog_socket, socket_buffer): 
         "Class initialisation"
-
 
         # Global class var
         self.facilities = ("kernel", "user-level", 
@@ -52,7 +51,6 @@ class SendLog:
         self.socket_buffer = socket_buffer
         self.amqp_exchange = amqp_exchange
         self.logelf_conf = logelf_conf
-
 
         if self.logelf_conf.get('loadavg') == "on":
             self.loadavg_file = open('/proc/loadavg', 'r', 0)
@@ -109,6 +107,7 @@ class SendLog:
 
         self.channel = self.connection.channel()
 
+
     def process_log(self, syslog_type, amqp_rkey):
         "Process the log, and send to AMQP broker"
 
@@ -129,14 +128,15 @@ class SendLog:
                 self.__send_to_broker__(amqp_rkey, gelf_msg)
             except KeyboardInterrupt:
                 print "Keyboard interruption"
-                ##self.close()
                 break
+
 
     def __read_loadavg__(self):
         "Read /proc/loadavg"
 
         self.loadavg_file.seek(0)
         return self.loadavg_file.read().split() 
+
 
     def __read_memstat__(self):
         "Read /prod/meminfo"
@@ -148,6 +148,7 @@ class SendLog:
             meminfo[i] = self.memstat_file.readline().split()[1]
 
         return meminfo
+
 
     def __write_to_fifo__(self, gelf_msg):
         "Write to a fifo file"
@@ -165,17 +166,13 @@ class SendLog:
             print "Exception: %s" % (err)
             sys.exit(1)
 
+
     def __send_to_broker__(self, amqp_rkey, amqp_msg):
         "Send messages to AMQP broker"
         
         self.channel.basic_publish(exchange=self.amqp_exchange, 
                         routing_key=amqp_rkey, body=amqp_msg)
-        #try:
-        #    self.channel.basic_publish(exchange=self.amqp_exchange,
-        #                    routing_key=amqp_rkey, body=amqp_msg) 
-        #except Exception, err:
-        #    print "Exception: %s" % (err)
-        #    sys.exit(1)
+
 
     def gelfify(self, syslog_type, syslog_msg):
         "Gelfify the syslog messages"
@@ -215,6 +212,7 @@ class SendLog:
                         'facility': self.facilities[int(self.facility)]}
 
         return json.dumps(self.gelf_msg)
+
 
     def run(self, amqp_rkey):
         "Run the show"
@@ -259,8 +257,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("config", action="store",
                 help="path to config FILE", metavar="CONFIG_FILE")
-    parser.add_argument("start", action="store_true",
-                help="start the daemon")
 
     args = parser.parse_args()
 
@@ -301,7 +297,6 @@ def main():
                 monkey=False,
                 stdout=stdout_file,
                 stderr=stdout_file,
-                detach_process=False,
                 pidfile=lockfile.FileLock('/var/run/logelf/logelf.pid'),
                 )
 
