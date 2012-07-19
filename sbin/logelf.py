@@ -98,16 +98,22 @@ class SendLog:
         self.kmsg_file = open('/proc/kmsg', 'r', 0)
 
         # Our local fifo initialisation
-        if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
-            try:
-                fd = os.open(syslog_fifo, os.O_RDWR | os.O_NONBLOCK, 0)
-                self.fifo_file = os.fdopen(fd,'w', 0)
-            except Exception, err:
-                print "Fifo exception: %s" % (err)
+        if os.path.exists(self.syslog_fifo):
+            if stat.S_ISFIFO(os.stat(syslog_fifo).st_mode):
+                try:
+                    fd = os.open(syslog_fifo, os.O_RDWR | os.O_NONBLOCK, 0)
+                    self.fifo_file = os.fdopen(fd,'w', 0)
+                except Exception, err:
+                    print "Fifo exception: %s" % (err)
+                    sys.exit(1)
+            else:
+                print "%s is not a fifo file" % (syslog_fifo)
                 sys.exit(1)
         else:
-            print "%s is not a fifo file" % (syslog_fifo)
-            sys.exit(1)
+            # We create and open the syslog fifo
+            os.mkfifo(self.syslog_fifo)
+            fd = os.open(syslog_fifo, os.O_RDWR | os.O_NONBLOCK, 0)
+            self.fifo_file = os.fdopen(fd,'w', 0)
 
         # AMQP initialisation
         while True:
