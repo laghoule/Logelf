@@ -5,7 +5,7 @@ python
 python-pika
 python-gevent 
 python-greenlet
-geventdaemon (https://github.com/gwik/geventdaemon)
+python-geventdaemon (https://github.com/laghoule/geventdaemon)
 
 
 Description
