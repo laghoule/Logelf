@@ -21,5 +21,4 @@ BUG
 ---
 
 * logelf logfile bufferize data
-* Create fifo if it doesn't exist
 * don't reconnect on AMQP restart
