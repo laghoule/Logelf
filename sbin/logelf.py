@@ -122,20 +122,22 @@ class SendLog:
                     #self.ssl_options = {'ca_certs': ssl_info.get('cacert'), 
                     #                    'certfile': ssl_info.get('cert'), 
                     #                    keyfile': ssl_info.get('key')}
-                    #self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
+                    #self.amqp_connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
                     #                        credentials=credentials, virtual_host=virtualhost,
                     #                        ssl=True, ssl_options=self.ssl_options))
                     print "AMQPS support broken right now..." 
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
+                    self.amqp_connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
                                              credentials=credentials, virtual_host=virtualhost))
                     break
                 elif ssl.get('enable') == "off":
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
+                    self.amqp_connection = pika.BlockingConnection(pika.ConnectionParameters(host=amqp_server,
                                              credentials=credentials, virtual_host=virtualhost))
                     break
             except Exception, err:
                 print "Exception: %s, will retry in 5 sec.." % (err)
                 time.sleep(5)
+
+        self.amqp_channel = self.amqp_connection.channel()
 
         # /dev/log initialisation
         # Must be the last one to initialise
@@ -146,8 +148,6 @@ class SendLog:
         except Exception, err:
             print "Socket exception: %s" % (err)
             sys.exit(1)
-
-        self.channel = self.connection.channel()
 
 
     def process_log(self, syslog_type, amqp_rkey):
@@ -212,7 +212,7 @@ class SendLog:
     def __send_to_broker__(self, amqp_rkey, amqp_msg):
         "Send messages to AMQP broker"
         
-        self.channel.basic_publish(exchange=self.amqp_exchange, 
+        self.amqp_channel.basic_publish(exchange=self.amqp_exchange, 
                         routing_key=amqp_rkey, body=amqp_msg)
 
 
