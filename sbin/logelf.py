@@ -334,7 +334,7 @@ def main():
     credentials = pika.PlainCredentials(username, password)
 
     # Daemonification
-    stdout_file = open('/var/log/logelf.log', 'w+', 0)
+    stdout_file = open('/var/log/logelf.log', 'a', 0)
     context = geventdaemon.GeventDaemonContext(
                 monkey_greenlet_report=False,
                 monkey=False,
