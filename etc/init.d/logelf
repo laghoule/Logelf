@@ -24,13 +24,11 @@ PIDFILE=/var/run/logelf.pid
 case "$1" in
 start)
         echo -n "Starting logelf daemon:" "logelf "
-        #echo -n "$NAME "
         start_daemon $DAEMON $EXTRA_OPTS
         echo
         ;;
 stop)
         echo -n "Stopping logelf daemon:" "logelf "
-        #echo -n "$NAME "
         killproc -p $PIDFILE $DAEMON
         echo
         ;;
