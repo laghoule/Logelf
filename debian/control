@@ -8,5 +8,5 @@ Homepage: https://github.com/laghoule/Logelf
 
 Package: logelf-server
 Architecture: any
-Depends: python-pika(>=0.9.5), python-gevent, python-geventdaemon, python-greenlet, python
+Depends: python-pika(>=0.9.5), python-gevent, python-geventdaemon, python-greenlet, python-argparse, python
 Description: Logelf is a syslog daemon who format data in gelf, and send to an AMQP server. 
