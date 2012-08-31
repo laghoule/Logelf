@@ -1,0 +1,4 @@
+#!/bin/bash
+
+chmod 640 /etc/logelf.conf
+chown root:root /etc/logelf.conf
