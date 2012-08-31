@@ -81,12 +81,16 @@ class SendLog:
                 "clock related", "local use 0", "local use 1", 
                 "local use 2", "local use 2", "local use 3", 
                 "local use 4", "local use 5", "local use 6", "local use 7")
-        self.hostname = gethostname()
         self.syslog_fifo = syslog_fifo
         self.syslog_socket = syslog_socket
         self.socket_buffer = socket_buffer
         self.amqp_exchange = amqp_exchange
         self.logelf_conf = logelf_conf
+
+        if self.logelf_conf.get('hostname') == "" or self.logelf_conf.get('hostname') == "off":
+            self.hostname = gethostname()
+        else:
+            self.hostname = self.logelf_conf.get('hostname') 
 
         if self.logelf_conf.get('loadavg') == "on":
             self.loadavg_file = open('/proc/loadavg', 'r', 0)
@@ -308,6 +312,7 @@ def main():
     config.readfp(config_fh)
 
     # Config var
+    logelf_hostname = str(config.get("logelf", "hostname"))
     logelf_loadavg = config.get("logelf", "loadavg")
     logelf_memstat = config.get("logelf", "memstat")
     syslog_fifo = config.get("syslog", "fifo")
@@ -323,9 +328,10 @@ def main():
     cacertfile = config.get("ssl", "cacertfile")
     certfile = config.get("ssl", "certfile")
     keyfile = config.get("ssl", "keyfile")
-
+    
     # Config dict
-    logelf_conf = {'loadavg': logelf_loadavg, 
+    logelf_conf = {'hostname': logelf_hostname,
+            'loadavg': logelf_loadavg, 
             'memstat': logelf_memstat}
     ssl = {'enable': ssl_enable, 'cacert': cacertfile, 
             'cert': certfile, 'key': keyfile}
@@ -336,10 +342,12 @@ def main():
     # Daemonification
     stdout_file = open('/var/log/logelf.log', 'a', 0)
     context = geventdaemon.GeventDaemonContext(
+                umask=022,
                 monkey_greenlet_report=False,
                 monkey=False,
                 stdout=stdout_file,
                 stderr=stdout_file,
+                detach_process=False, # For debug purpose
                 pidfile=PidFile("/var/run/logelf.pid")
                 )
 
