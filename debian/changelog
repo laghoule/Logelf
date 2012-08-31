@@ -1,5 +1,11 @@
+logelf-server (0.2-1) unstable; urgency=low
+
+  * Many improvement and fix 
+
+ -- Debbuilder <debbuilder@nihilisme.ca>  Mon, 06 Aug 2012 14:59:11 -0400
+
 logelf-server (0.1-1) unstable; urgency=low
 
   * Initial release
 
- -- Debian package builder <debbuild@onebigplanet.com>  Tue, 22 May 2012 14:26:12 -0400
+ -- Debian package builder <debbuild@nihilisme.ca>  Tue, 22 May 2012 14:26:12 -0400

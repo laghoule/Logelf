@@ -2,20 +2,22 @@ Requirement
 ------------
 
 python
-python-pika
 python-gevent 
 python-greenlet
 python-geventdaemon (https://github.com/laghoule/geventdaemon)
+python-pika (not in Debian stable, but you can repackage: http://ftp.ca.debian.org/debian/pool/main/p/python-pika/)
 
 
 Description
 -----------
 
 Logelf is a syslog daemon who format data in gelf, and send it to an AMQP server (RabbitMQ). You can now configure your graylog2 server to listen to your AMQP server.
+A local copy is sent to a fifo file. No data is written on local disk. This can be particuliarly nice in a cloud-like services infrastructure.
 
 Install
 -------
 
-Debian way: Just build the package, debuild...
+Debian way: Just build the package with debuild
+http://www.ducea.com/2008/03/06/howto-recompile-debian-packages/
 
 To install the daemon: dpkg --install  logelf-server 

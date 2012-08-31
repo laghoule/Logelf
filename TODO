@@ -2,10 +2,11 @@ TODO
 ----
 
 Priority HIGH:
-    Bugfix
 
 Priority medium:
     Code cleaning
+    deb upgrade package should restart the running daemon
+    deb should conflict with existing syslog server
 
 Priority low:
 
@@ -14,8 +15,8 @@ POSSIBLE BUG
 ------------
 
 * pika.BlockingConnection (should use async function)
-* write to fifo
 * thread issues with the handling of /proc/kmsg
+* write to fifo
 
 BUG
 ---
